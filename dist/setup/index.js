@@ -69342,7 +69342,7 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                 `The version '${version}' with architecture '${architecture}' was not found for ${osInfo
                     ? `${osInfo.osName} ${osInfo.osVersion}`
                     : 'this operating system'}.`,
-                `The list of all available versions can be found here: ${installer.MANIFEST_URL}`
+                `The list of all available versions can be found here: ${installer.getManifestRawUrl(installer.getMainfestReference())}`
             ].join(os.EOL));
         }
         const _binDir = binDir(installDir);
@@ -69674,7 +69674,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.installCpythonFromRelease = exports.getManifest = exports.findReleaseFromManifest = exports.MANIFEST_URL = void 0;
+exports.installCpythonFromRelease = exports.getManifest = exports.findReleaseFromManifest = exports.getManifestRawUrl = exports.getMainfestReference = exports.parseUsesManifest = void 0;
 const path = __importStar(__nccwpck_require__(1017));
 const core = __importStar(__nccwpck_require__(2186));
 const tc = __importStar(__nccwpck_require__(7784));
@@ -69682,10 +69682,30 @@ const exec = __importStar(__nccwpck_require__(1514));
 const utils_1 = __nccwpck_require__(1314);
 const TOKEN = core.getInput('token');
 const AUTH = !TOKEN ? undefined : `token ${TOKEN}`;
-const MANIFEST_REPO_OWNER = 'actions';
-const MANIFEST_REPO_NAME = 'python-versions';
-const MANIFEST_REPO_BRANCH = 'main';
-exports.MANIFEST_URL = `https://raw.githubusercontent.com/${MANIFEST_REPO_OWNER}/${MANIFEST_REPO_NAME}/${MANIFEST_REPO_BRANCH}/versions-manifest.json`;
+const MANIFEST_REPO_DEFAULT = 'actions/python-versions@main';
+// Parse the uses-cpython-manifest field using {{owner}}/{{repo}}@{{ref}}
+// basically a small subset of GitHub Manifest jobs.<job_id>.steps[*].uses
+// https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsuses
+// https://github.com/actions/runner/blob/v2.309.0/src/Sdk/DTPipelines/Pipelines/ObjectTemplating/PipelineTemplateConverter.cs#L522
+function parseUsesManifest(x) {
+    const m = /^(?<owner>[^/@]+)\/(?<repo>[^/@]+)@(?<ref>[^@]+)$/.exec(x);
+    if (m === null) {
+        throw new Error('Expected uses-cpython-manifest to have format {{owner}}/{{repo}}@{{ref}}');
+    }
+    const { owner, repo, ref } = m.groups;
+    return { owner, repo, ref };
+}
+exports.parseUsesManifest = parseUsesManifest;
+function getMainfestReference() {
+    const usesManifest = core.getInput('uses-cpython-manifest') || MANIFEST_REPO_DEFAULT;
+    const usesManifestReference = parseUsesManifest(usesManifest);
+    return usesManifestReference;
+}
+exports.getMainfestReference = getMainfestReference;
+function getManifestRawUrl(reference) {
+    return `https://raw.githubusercontent.com/${reference.owner}/${reference.repo}/${reference.ref}/versions-manifest.json`;
+}
+exports.getManifestRawUrl = getManifestRawUrl;
 function findReleaseFromManifest(semanticVersionSpec, architecture, manifest) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!manifest) {
@@ -69697,8 +69717,9 @@ function findReleaseFromManifest(semanticVersionSpec, architecture, manifest) {
 }
 exports.findReleaseFromManifest = findReleaseFromManifest;
 function getManifest() {
-    core.debug(`Getting manifest from ${MANIFEST_REPO_OWNER}/${MANIFEST_REPO_NAME}@${MANIFEST_REPO_BRANCH}`);
-    return tc.getManifestFromRepo(MANIFEST_REPO_OWNER, MANIFEST_REPO_NAME, AUTH, MANIFEST_REPO_BRANCH);
+    const manifestReference = getMainfestReference();
+    core.debug(`Getting manifest from ${getManifestRawUrl(manifestReference)}`);
+    return tc.getManifestFromRepo(manifestReference.owner, manifestReference.repo, AUTH, manifestReference.ref);
 }
 exports.getManifest = getManifest;
 function installPython(workingDirectory) {
