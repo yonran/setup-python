@@ -7,10 +7,38 @@ import {IS_WINDOWS, IS_LINUX} from './utils';
 
 const TOKEN = core.getInput('token');
 const AUTH = !TOKEN ? undefined : `token ${TOKEN}`;
-const MANIFEST_REPO_OWNER = 'actions';
-const MANIFEST_REPO_NAME = 'python-versions';
-const MANIFEST_REPO_BRANCH = 'main';
-export const MANIFEST_URL = `https://raw.githubusercontent.com/${MANIFEST_REPO_OWNER}/${MANIFEST_REPO_NAME}/${MANIFEST_REPO_BRANCH}/versions-manifest.json`;
+const MANIFEST_REPO_DEFAULT = 'actions/python-versions@main';
+
+export interface RepositoryReference {
+  owner: string;
+  repo: string;
+  ref: string;
+}
+
+// Parse the uses-cpython-manifest field using {{owner}}/{{repo}}@{{ref}}
+// basically a small subset of GitHub Manifest jobs.<job_id>.steps[*].uses
+// https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsuses
+// https://github.com/actions/runner/blob/v2.309.0/src/Sdk/DTPipelines/Pipelines/ObjectTemplating/PipelineTemplateConverter.cs#L522
+export function parseUsesManifest(x: string): RepositoryReference {
+  const m = /^(?<owner>[^/@]+)\/(?<repo>[^/@]+)@(?<ref>[^@]+)$/.exec(x);
+  if (m === null) {
+    throw new Error(
+      'Expected uses-cpython-manifest to have format {{owner}}/{{repo}}@{{ref}}'
+    );
+  }
+  const {owner, repo, ref} = m.groups!;
+  return {owner, repo, ref};
+}
+
+export function getMainfestReference(): RepositoryReference {
+  const usesManifest = core.getInput('uses-cpython-manifest') || MANIFEST_REPO_DEFAULT;
+  const usesManifestReference = parseUsesManifest(usesManifest);
+  return usesManifestReference;
+}
+
+export function getManifestRawUrl(reference: RepositoryReference) {
+  return `https://raw.githubusercontent.com/${reference.owner}/${reference.repo}/${reference.ref}/versions-manifest.json`;
+}
 
 export async function findReleaseFromManifest(
   semanticVersionSpec: string,
@@ -32,14 +60,15 @@ export async function findReleaseFromManifest(
 }
 
 export function getManifest(): Promise<tc.IToolRelease[]> {
+  const manifestReference: RepositoryReference = getMainfestReference();
   core.debug(
-    `Getting manifest from ${MANIFEST_REPO_OWNER}/${MANIFEST_REPO_NAME}@${MANIFEST_REPO_BRANCH}`
+    `Getting manifest from ${getManifestRawUrl(manifestReference)}`
   );
   return tc.getManifestFromRepo(
-    MANIFEST_REPO_OWNER,
-    MANIFEST_REPO_NAME,
+    manifestReference.owner,
+    manifestReference.repo,
     AUTH,
-    MANIFEST_REPO_BRANCH
+    manifestReference.ref
   );
 }
 

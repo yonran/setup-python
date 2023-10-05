@@ -97,7 +97,7 @@ export async function useCpythonVersion(
             ? `${osInfo.osName} ${osInfo.osVersion}`
             : 'this operating system'
         }.`,
-        `The list of all available versions can be found here: ${installer.MANIFEST_URL}`
+        `The list of all available versions can be found here: ${installer.getManifestRawUrl(installer.getMainfestReference())}`
       ].join(os.EOL)
     );
   }

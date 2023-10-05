@@ -374,6 +374,22 @@ steps:
   # Or pip install -e '.[test]' to install test dependencies
 ```
 
+**Using a custom python versions manifest version:**
+
+```yaml
+steps:
+- uses: actions/checkout@v3
+- uses: actions/setup-python@v4
+  with:
+    python-version: '2.7'
+    cache: 'pip'
+    # 87d20c715fb88616b9231bdb676ef2b2825c47f8^
+    # (before https://github.com/actions/python-versions/pull/234)
+    uses-cpython-manifest: actions/python-versions@225ba42747d0f5e3dbd90ba15b9c7409a4b8c735
+- run: python -c 'print 1'
+```
+
+
 # Outputs and environment variables
 
 ## Outputs

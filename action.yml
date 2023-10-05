@@ -26,6 +26,9 @@ inputs:
   allow-prereleases:
     description: "When 'true', a version range passed to 'python-version' input will match prerelease versions if no GA versions are found. Only 'x.y' version range is supported for CPython."
     default: false
+  uses-cpython-manifest:
+    description: "The GitHub repository where the list of python versions is read. Must contain versions-manifest.json."
+    default: "actions/python-versions@main"
 outputs:
   python-version:
     description: "The installed Python or PyPy version. Useful when given a version range as input."
